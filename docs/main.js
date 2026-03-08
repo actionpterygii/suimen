@@ -2,13 +2,13 @@
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x031021);
-scene.fog = new THREE.Fog(0x031021, 6, 18);
+scene.fog = new THREE.Fog(0x031021, 35, 160);
 
 const camera = new THREE.PerspectiveCamera(
   65,
   window.innerWidth / window.innerHeight,
   0.1,
-  60
+ 240
 );
 camera.position.set(0, -2.6, 0.4);
 camera.lookAt(0, 0.1, 0);
@@ -52,7 +52,7 @@ const uniforms = {
 };
 
 const water = new THREE.Mesh(
-  new THREE.PlaneGeometry(26, 26, 220, 220),
+  new THREE.PlaneGeometry(260, 260, 320, 320),
   new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
     transparent: true,
@@ -146,7 +146,7 @@ water.position.y = 0;
 scene.add(water);
 
 const haze = new THREE.Mesh(
-  new THREE.SphereGeometry(18, 24, 24),
+  new THREE.SphereGeometry(180, 32, 32),
   new THREE.MeshBasicMaterial({ color: 0x052241, side: THREE.BackSide, transparent: true, opacity: 0.33 })
 );
 scene.add(haze);
