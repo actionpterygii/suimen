@@ -58,7 +58,7 @@ const water = new THREE.Mesh(
   new THREE.PlaneGeometry(260, 260, 320, 320),
   new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
-    transparent: false,
+    transparent: true,
     uniforms,
     vertexShader: `
       uniform float uTime;
@@ -115,30 +115,48 @@ const water = new THREE.Mesh(
       varying vec3 vNormalW;
       varying float vWave;
 
-      void main() {
-        vec3 deep = vec3(0.02, 0.14, 0.27);
-        vec3 shallow = vec3(0.12, 0.44, 0.62);
+      vec3 skyColor(vec3 dir) {
+        float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+        vec3 horizon = vec3(0.62, 0.80, 0.97);
+        vec3 zenith = vec3(0.18, 0.45, 0.82);
+        return mix(horizon, zenith, pow(h, 1.15));
+      }
 
+      void main() {
         vec3 viewDir = normalize(cameraPosition - vWorldPos);
         vec3 normal = normalize(vNormalW);
+        vec3 up = vec3(0.0, 1.0, 0.0);
 
         vec3 sunDir = normalize(vec3(0.15, 1.0, 0.25));
         float sunDot = max(dot(normal, sunDir), 0.0);
         float sunGlow = pow(sunDot, 10.0 / max(uSunSpread, 0.15)) * uSunIntensity;
 
-        float rim = pow(1.0 - max(dot(viewDir, normal), 0.0), 2.4);
+        float rim = pow(1.0 - max(dot(viewDir, normal), 0.0), 3.2);
+        float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 5.0);
 
         float caustic =
           sin(vWorldPos.x * 2.0 + uTime * 0.35) *
           sin(vWorldPos.z * 2.4 - uTime * 0.28);
         caustic = (caustic * 0.5 + 0.5) * 0.12 * uSunIntensity;
 
-        float blend = clamp(0.38 + vWave * 2.8 + rim * 0.35, 0.0, 1.0);
-        vec3 color = mix(deep, shallow, blend);
-        color += vec3(0.8, 0.95, 1.0) * sunGlow;
-        color += vec3(0.15, 0.35, 0.4) * caustic;
+        vec3 refrDir = refract(-viewDir, normal, 1.0 / 1.333);
+        if (length(refrDir) < 0.0001) {
+          refrDir = normalize(mix(up, normal, 0.2));
+        }
 
-        float alpha = 1.0;
+        vec3 sky = skyColor(normalize(mix(up, refrDir, 0.85)));
+
+        float opticalPath = clamp((-cameraPosition.y) / max(dot(up, refrDir), 0.12), 0.0, 80.0);
+        vec3 absorption = vec3(0.20, 0.09, 0.04);
+        vec3 transmittance = exp(-absorption * opticalPath * 0.18);
+
+        vec3 transmitted = sky * transmittance;
+        vec3 reflected = skyColor(reflect(-viewDir, normal)) * (0.12 + 0.45 * fresnel);
+        vec3 color = transmitted + reflected;
+        color += vec3(0.85, 0.96, 1.0) * sunGlow * (0.5 + 0.5 * fresnel);
+        color += vec3(0.12, 0.30, 0.36) * caustic * (0.4 + rim * 0.6);
+
+        float alpha = clamp(0.86 + fresnel * 0.1, 0.0, 1.0);
         gl_FragColor = vec4(color, alpha);
       }
     `,
