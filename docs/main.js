@@ -26,6 +26,8 @@ const params = {
   waveSpeed: 0.35,
   waveRandomness: 0.35,
   cameraDistance: 2.6,
+  cameraPitch: 12,
+  cameraYaw: 0,
 };
 
 // 波の向きと位相を固定乱数で作り、穏やかで自然なゆらぎを出す。
@@ -157,11 +159,21 @@ const sliders = {
   waveSpeed: document.getElementById("waveSpeed"),
   waveRandomness: document.getElementById("waveRandomness"),
   cameraDistance: document.getElementById("cameraDistance"),
+  cameraPitch: document.getElementById("cameraPitch"),
+  cameraYaw: document.getElementById("cameraYaw"),
 };
 
 function updateCameraDistance() {
   camera.position.y = -params.cameraDistance;
-  camera.lookAt(0, 0.1, 0);
+  const pitch = THREE.MathUtils.degToRad(params.cameraPitch);
+  const yaw = THREE.MathUtils.degToRad(params.cameraYaw);
+  const dir = new THREE.Vector3(
+    Math.sin(pitch) * Math.sin(yaw),
+    Math.cos(pitch),
+    Math.sin(pitch) * Math.cos(yaw)
+  );
+  const target = camera.position.clone().add(dir.multiplyScalar(6));
+  camera.lookAt(target);
 }
 
 Object.keys(sliders).forEach((key) => {
@@ -174,7 +186,7 @@ Object.keys(sliders).forEach((key) => {
     if (uniforms[uniformKey]) {
       uniforms[uniformKey].value = v;
     }
-    if (key === "cameraDistance") {
+    if (key === "cameraDistance" || key === "cameraPitch" || key === "cameraYaw") {
       updateCameraDistance();
     }
   });
