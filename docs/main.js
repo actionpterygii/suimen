@@ -66,9 +66,12 @@ const water = new Water(waterGeometry, {
   waterColor: 0x1a4f7a,
   distortionScale: 1.1,
   fog: false,
+  side: THREE.DoubleSide,
 });
 water.rotation.x = -Math.PI / 2;
 water.position.y = 0;
+// 水中側からも必ず見えるように両面描画を明示する。
+water.material.side = THREE.DoubleSide;
 scene.add(water);
 
 const sun = new THREE.Vector3();
@@ -82,10 +85,11 @@ function updateSkyAndSun() {
   const elevation = THREE.MathUtils.lerp(8, 34, (spread - 0.2) / (3.0 - 0.2));
   const azimuth = 180;
 
-  skyUniforms.turbidity.value = THREE.MathUtils.lerp(1.2, 4.0, spread / 3.0);
-  skyUniforms.rayleigh.value = THREE.MathUtils.lerp(0.9, 2.4, spread / 3.0);
-  skyUniforms.mieCoefficient.value = THREE.MathUtils.lerp(0.001, 0.01, spread / 3.0);
-  skyUniforms.mieDirectionalG.value = THREE.MathUtils.lerp(0.86, 0.95, spread / 3.0);
+  // 濁りを抑えて青空寄りにする。
+  skyUniforms.turbidity.value = THREE.MathUtils.lerp(0.8, 2.2, spread / 3.0);
+  skyUniforms.rayleigh.value = THREE.MathUtils.lerp(1.4, 3.4, spread / 3.0);
+  skyUniforms.mieCoefficient.value = THREE.MathUtils.lerp(0.0004, 0.0035, spread / 3.0);
+  skyUniforms.mieDirectionalG.value = THREE.MathUtils.lerp(0.80, 0.88, spread / 3.0);
 
   const phi = THREE.MathUtils.degToRad(90 - elevation);
   const theta = THREE.MathUtils.degToRad(azimuth);
@@ -108,11 +112,11 @@ function updateWaveParams() {
   const waveHeight = THREE.MathUtils.clamp(params.waveHeight, 0, 0.45);
   const waveFreq = THREE.MathUtils.clamp(params.waveFrequency, 0.2, 2.2);
 
-  // distortionScale を波高へ対応。
-  water.material.uniforms.distortionScale.value = 0.2 + waveHeight * 10.0;
+  // distortionScale を強めにして水面のゆらぎを見えやすくする。
+  water.material.uniforms.distortionScale.value = 0.6 + waveHeight * 20.0;
 
-  // size は波のスケール。大きいほど細かく揺れる。
-  water.material.uniforms.size.value = 0.6 + waveFreq * 2.0;
+  // size は波のスケール。範囲を広げて差が分かるようにする。
+  water.material.uniforms.size.value = 0.3 + waveFreq * 3.2;
 }
 
 // 距離・角度パラメーターからカメラ姿勢を再計算する。
@@ -186,15 +190,16 @@ function animate() {
   const t = clock.getElapsedTime();
   const dt = clock.getDelta();
 
-  const speed = 0.12 + params.waveSpeed * 0.9;
+  // speed を強めにして、スライダー操作時の差を見やすくする。
+  const speed = 0.2 + params.waveSpeed * 1.8;
   water.material.uniforms.time.value += dt * speed;
 
   // 波のランダムさで size を微小変動させ、穏やかな不規則性を出す。
-  const baseSize = 0.6 + THREE.MathUtils.clamp(params.waveFrequency, 0.2, 2.2) * 2.0;
+  const baseSize = 0.3 + THREE.MathUtils.clamp(params.waveFrequency, 0.2, 2.2) * 3.2;
   const randomFactor =
     1.0 +
-    Math.sin(t * 0.37) * 0.06 * params.waveRandomness +
-    Math.sin(t * 0.61 + 1.7) * 0.04 * params.waveRandomness;
+    Math.sin(t * 0.37) * 0.11 * params.waveRandomness +
+    Math.sin(t * 0.61 + 1.7) * 0.08 * params.waveRandomness;
   water.material.uniforms.size.value = baseSize * randomFactor;
 
   renderer.render(scene, camera);
