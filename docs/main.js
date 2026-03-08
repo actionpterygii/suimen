@@ -122,16 +122,12 @@ const water = new THREE.Mesh(
       varying vec3 vNormalW;
       varying float vWave;
 
-      // 空の色。水平線と天頂の差を強め、太陽ディスクも直接足す。
-      vec3 skyColor(vec3 dir, vec3 sunDir) {
+      // 空の色。ここではグラデーションのみを返す。
+      vec3 skyColor(vec3 dir) {
         float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
         vec3 horizon = vec3(0.70, 0.86, 0.99);
         vec3 zenith = vec3(0.12, 0.36, 0.78);
-        vec3 sky = mix(horizon, zenith, pow(h, 1.55));
-
-        float sunDisk = pow(max(dot(normalize(dir), sunDir), 0.0), 360.0);
-        sky += vec3(1.0, 0.98, 0.92) * sunDisk * 2.0;
-        return sky;
+        return mix(horizon, zenith, pow(h, 1.55));
       }
 
       void main() {
@@ -140,17 +136,28 @@ const water = new THREE.Mesh(
         vec3 up = vec3(0.0, 1.0, 0.0);
         vec3 sunDir = normalize(vec3(0.15, 1.0, 0.25));
 
+        // 太陽像が崩れ過ぎないよう、屈折計算は穏やかな法線を使う。
+        vec3 calmNormal = normalize(mix(normal, up, 0.88));
+
         // 屈折方向を使って、水越しに見える空色を計算する。
-        vec3 refrDir = refract(-viewDir, normal, 1.0 / 1.333);
+        vec3 refrDir = refract(-viewDir, calmNormal, 1.0 / 1.333);
         if (length(refrDir) < 0.0001) {
-          refrDir = normalize(mix(up, normal, 0.2));
+          refrDir = normalize(mix(up, calmNormal, 0.2));
         }
 
         // フレネルで反射寄与を決める。
         float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 5.0);
 
-        vec3 skyRefract = skyColor(normalize(mix(up, refrDir, 0.92)), sunDir);
-        vec3 skyReflect = skyColor(reflect(-viewDir, normal), sunDir);
+        vec3 refrSkyDir = normalize(mix(up, refrDir, 0.96));
+        vec3 reflSkyDir = reflect(-viewDir, calmNormal);
+        vec3 skyRefract = skyColor(refrSkyDir);
+        vec3 skyReflect = skyColor(reflSkyDir);
+
+        // 太陽ディスクを角距離で描き、円形を保ちやすくする。
+        float sunAngle = dot(refrSkyDir, sunDir);
+        float sunDisk = smoothstep(0.9996, 0.99995, sunAngle);
+        float sunHalo = smoothstep(0.995, 0.9996, sunAngle) * (1.0 - sunDisk);
+        vec3 sunShape = vec3(1.0, 0.97, 0.90) * (sunDisk * 3.2 + sunHalo * 0.9) * uSunIntensity;
 
         // 水中の減衰。弱めにしてクリアな見え方を優先する。
         float opticalPath = clamp((-cameraPosition.y) / max(dot(up, refrDir), 0.12), 0.0, 80.0);
@@ -170,6 +177,7 @@ const water = new THREE.Mesh(
 
         vec3 color = transmitted + reflected;
         color += vec3(0.95, 0.98, 1.0) * sunGlow;
+        color += sunShape;
         color += vec3(0.08, 0.20, 0.24) * caustic;
 
         // 最後に軽くコントラストを上げて眠い画を防ぐ。
