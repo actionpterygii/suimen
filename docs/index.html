@@ -3,14 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>suimen - Three.js</title>
+    <title>suimen - Underwater Surface</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main>
-      <h1>Three.js Starter</h1>
-      <p>回転する立方体のサンプルです。</p>
-    </main>
+    <aside class="panel">
+      <h1>水中から見た水面</h1>
+      <p>太陽光と波のゆらぎを調整できます。</p>
+
+      <label for="sunIntensity">太陽光の強さ</label>
+      <input id="sunIntensity" type="range" min="0" max="2" step="0.01" value="1.1" />
+
+      <label for="sunSpread">太陽光の広がり</label>
+      <input id="sunSpread" type="range" min="0.2" max="3" step="0.01" value="1.2" />
+
+      <label for="waveHeight">波の高さ</label>
+      <input id="waveHeight" type="range" min="0" max="0.45" step="0.005" value="0.14" />
+
+      <label for="waveFrequency">波の細かさ</label>
+      <input id="waveFrequency" type="range" min="0.2" max="2.2" step="0.01" value="0.9" />
+
+      <label for="waveSpeed">波の速さ</label>
+      <input id="waveSpeed" type="range" min="0" max="1.6" step="0.01" value="0.35" />
+
+      <label for="waveRandomness">波のランダムさ</label>
+      <input id="waveRandomness" type="range" min="0" max="1" step="0.01" value="0.35" />
+    </aside>
+
     <script type="module" src="./main.js"></script>
   </body>
 </html>
