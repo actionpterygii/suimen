@@ -1,18 +1,21 @@
 ﻿import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 
+// シーン。霧は使わず、輪郭の甘さを減らす。
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x031021);
+scene.background = new THREE.Color(0x041428);
 scene.fog = null;
 
+// 水中側から水面を見上げるカメラ。
 const camera = new THREE.PerspectiveCamera(
   65,
   window.innerWidth / window.innerHeight,
   0.1,
- 240
+  240
 );
-camera.position.set(0, -2.6, 0.4);
+camera.position.set(0, -8, 0.4);
 camera.lookAt(0, 0.1, 0);
 
+// レンダラー。色空間のみ有効化し、トーンマッピングは無効にしてにじみを抑える。
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -20,6 +23,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 document.body.appendChild(renderer.domElement);
 
+// UI と同期するパラメーター。
 const params = {
   sunIntensity: 1.1,
   sunSpread: 1.2,
@@ -32,7 +36,7 @@ const params = {
   cameraYaw: 0,
 };
 
-// 波の向きと位相を固定乱数で作り、穏やかで自然なゆらぎを出す。
+// 波の方向と位相を乱数で固定し、毎回同じ雰囲気で揺れるようにする。
 const waveDirs = [];
 const wavePhase = [];
 for (let i = 0; i < 4; i += 1) {
@@ -41,6 +45,7 @@ for (let i = 0; i < 4; i += 1) {
   wavePhase.push(Math.random() * Math.PI * 2);
 }
 
+// シェーダーへ渡す値。
 const uniforms = {
   uTime: { value: 0 },
   uSunIntensity: { value: params.sunIntensity },
@@ -53,6 +58,7 @@ const uniforms = {
   uWavePhase: { value: wavePhase },
 };
 
+// 広い平面を水面として使う。端が見えないように十分大きくする。
 const water = new THREE.Mesh(
   new THREE.PlaneGeometry(260, 260, 320, 320),
   new THREE.ShaderMaterial({
@@ -72,6 +78,7 @@ const water = new THREE.Mesh(
       varying vec3 vNormalW;
       varying float vWave;
 
+      // 複数のサイン波を合成して、静かなランダム波を作る。
       float wave(vec2 p) {
         float f = uWaveFrequency;
         float t = uTime * uWaveSpeed;
@@ -92,7 +99,8 @@ const water = new THREE.Mesh(
         float h = wave(p);
         pos.y += h;
 
-        float e = 0.05;
+        // 法線の差分幅を小さめにして、反射ハイライトを鋭くする。
+        float e = 0.02;
         float hx = wave(p + vec2(e, 0.0)) - h;
         float hz = wave(p + vec2(0.0, e)) - h;
         vec3 n = normalize(cross(vec3(0.0, hz, e), vec3(e, hx, 0.0)));
@@ -114,49 +122,60 @@ const water = new THREE.Mesh(
       varying vec3 vNormalW;
       varying float vWave;
 
-      vec3 skyColor(vec3 dir) {
+      // 空の色。水平線と天頂の差を強め、太陽ディスクも直接足す。
+      vec3 skyColor(vec3 dir, vec3 sunDir) {
         float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
-        vec3 horizon = vec3(0.62, 0.80, 0.97);
-        vec3 zenith = vec3(0.18, 0.45, 0.82);
-        return mix(horizon, zenith, pow(h, 1.15));
+        vec3 horizon = vec3(0.70, 0.86, 0.99);
+        vec3 zenith = vec3(0.12, 0.36, 0.78);
+        vec3 sky = mix(horizon, zenith, pow(h, 1.55));
+
+        float sunDisk = pow(max(dot(normalize(dir), sunDir), 0.0), 360.0);
+        sky += vec3(1.0, 0.98, 0.92) * sunDisk * 2.0;
+        return sky;
       }
 
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorldPos);
         vec3 normal = normalize(vNormalW);
         vec3 up = vec3(0.0, 1.0, 0.0);
-
         vec3 sunDir = normalize(vec3(0.15, 1.0, 0.25));
-        float sunDot = max(dot(normal, sunDir), 0.0);
-        float sunGlow = pow(sunDot, 10.0 / max(uSunSpread, 0.15)) * uSunIntensity;
 
-        float rim = pow(1.0 - max(dot(viewDir, normal), 0.0), 3.2);
-        float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 5.0);
-
-        float caustic =
-          sin(vWorldPos.x * 2.0 + uTime * 0.35) *
-          sin(vWorldPos.z * 2.4 - uTime * 0.28);
-        caustic = (caustic * 0.5 + 0.5) * 0.12 * uSunIntensity;
-
+        // 屈折方向を使って、水越しに見える空色を計算する。
         vec3 refrDir = refract(-viewDir, normal, 1.0 / 1.333);
         if (length(refrDir) < 0.0001) {
           refrDir = normalize(mix(up, normal, 0.2));
         }
 
-        vec3 sky = skyColor(normalize(mix(up, refrDir, 0.85)));
+        // フレネルで反射寄与を決める。
+        float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 5.0);
 
+        vec3 skyRefract = skyColor(normalize(mix(up, refrDir, 0.92)), sunDir);
+        vec3 skyReflect = skyColor(reflect(-viewDir, normal), sunDir);
+
+        // 水中の減衰。弱めにしてクリアな見え方を優先する。
         float opticalPath = clamp((-cameraPosition.y) / max(dot(up, refrDir), 0.12), 0.0, 80.0);
-        vec3 absorption = vec3(0.20, 0.09, 0.04);
-        vec3 transmittance = exp(-absorption * opticalPath * 0.18);
+        vec3 absorption = vec3(0.10, 0.04, 0.02);
+        vec3 transmittance = exp(-absorption * opticalPath * 0.12);
 
-        vec3 transmitted = sky * transmittance;
-        vec3 reflected = skyColor(reflect(-viewDir, normal)) * (0.12 + 0.45 * fresnel);
+        vec3 transmitted = skyRefract * transmittance;
+        vec3 reflected = skyReflect * (0.08 + 0.50 * fresnel);
+
+        // 水面の太陽グリントを鋭くする。
+        float sunDot = max(dot(normal, sunDir), 0.0);
+        float sunGlow = pow(sunDot, 24.0 / max(uSunSpread, 0.15)) * uSunIntensity;
+
+        // わずかな揺らぎ模様。
+        float caustic = sin(vWorldPos.x * 2.0 + uTime * 0.35) * sin(vWorldPos.z * 2.4 - uTime * 0.28);
+        caustic = (caustic * 0.5 + 0.5) * 0.06 * uSunIntensity;
+
         vec3 color = transmitted + reflected;
-        color += vec3(0.85, 0.96, 1.0) * sunGlow * (0.5 + 0.5 * fresnel);
-        color += vec3(0.12, 0.30, 0.36) * caustic * (0.4 + rim * 0.6);
+        color += vec3(0.95, 0.98, 1.0) * sunGlow;
+        color += vec3(0.08, 0.20, 0.24) * caustic;
 
-        float alpha = 1.0;
-        gl_FragColor = vec4(color, alpha);
+        // 最後に軽くコントラストを上げて眠い画を防ぐ。
+        color = pow(max(color, vec3(0.0)), vec3(0.92));
+
+        gl_FragColor = vec4(color, 1.0);
       }
     `,
   })
@@ -165,12 +184,7 @@ water.rotation.x = -Math.PI / 2;
 water.position.y = 0;
 scene.add(water);
 
-const haze = new THREE.Mesh(
-  new THREE.SphereGeometry(180, 32, 32),
-  new THREE.MeshBasicMaterial({ color: 0x052241, side: THREE.BackSide, transparent: true, opacity: 0.03 })
-);
-scene.add(haze);
-
+// UI 要素を取得する。
 const sliders = {
   sunIntensity: document.getElementById("sunIntensity"),
   sunSpread: document.getElementById("sunSpread"),
@@ -183,8 +197,10 @@ const sliders = {
   cameraYaw: document.getElementById("cameraYaw"),
 };
 
-function updateCameraDistance() {
+// 距離・角度パラメーターからカメラ姿勢を再計算する。
+function updateCameraPose() {
   camera.position.y = -params.cameraDistance;
+
   const pitch = THREE.MathUtils.degToRad(params.cameraPitch);
   const yaw = THREE.MathUtils.degToRad(params.cameraYaw);
   const dir = new THREE.Vector3(
@@ -192,27 +208,33 @@ function updateCameraDistance() {
     Math.cos(pitch),
     Math.sin(pitch) * Math.cos(yaw)
   );
+
   const target = camera.position.clone().add(dir.multiplyScalar(6));
   camera.lookAt(target);
 }
 
+// スライダー変更をパラメーターとシェーダーへ反映する。
 Object.keys(sliders).forEach((key) => {
   const input = sliders[key];
   if (!input) return;
+
   input.addEventListener("input", () => {
     const v = Number(input.value);
     params[key] = v;
+
     const uniformKey = `u${key[0].toUpperCase()}${key.slice(1)}`;
     if (uniforms[uniformKey]) {
       uniforms[uniformKey].value = v;
     }
+
     if (key === "cameraDistance" || key === "cameraPitch" || key === "cameraYaw") {
-      updateCameraDistance();
+      updateCameraPose();
     }
   });
 });
-updateCameraDistance();
+updateCameraPose();
 
+// 画面サイズ変更時にレンダラーとカメラを更新する。
 function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -220,6 +242,7 @@ function onResize() {
 }
 window.addEventListener("resize", onResize);
 
+// 毎フレーム、時刻ユニフォームを更新して描画する。
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
