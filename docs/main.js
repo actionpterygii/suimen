@@ -25,6 +25,7 @@ const params = {
   waveFrequency: 0.9,
   waveSpeed: 0.35,
   waveRandomness: 0.35,
+  cameraDistance: 2.6,
 };
 
 // 波の向きと位相を固定乱数で作り、穏やかで自然なゆらぎを出す。
@@ -155,7 +156,13 @@ const sliders = {
   waveFrequency: document.getElementById("waveFrequency"),
   waveSpeed: document.getElementById("waveSpeed"),
   waveRandomness: document.getElementById("waveRandomness"),
+  cameraDistance: document.getElementById("cameraDistance"),
 };
+
+function updateCameraDistance() {
+  camera.position.y = -params.cameraDistance;
+  camera.lookAt(0, 0.1, 0);
+}
 
 Object.keys(sliders).forEach((key) => {
   const input = sliders[key];
@@ -163,9 +170,16 @@ Object.keys(sliders).forEach((key) => {
   input.addEventListener("input", () => {
     const v = Number(input.value);
     params[key] = v;
-    uniforms[`u${key[0].toUpperCase()}${key.slice(1)}`].value = v;
+    const uniformKey = `u${key[0].toUpperCase()}${key.slice(1)}`;
+    if (uniforms[uniformKey]) {
+      uniforms[uniformKey].value = v;
+    }
+    if (key === "cameraDistance") {
+      updateCameraDistance();
+    }
   });
 });
+updateCameraDistance();
 
 function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
