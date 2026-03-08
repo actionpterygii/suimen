@@ -11,6 +11,12 @@ PowerShell でプロジェクト直下から次を実行します。
 .\serve-local.ps1
 ```
 
+実行ポリシーで `ps1` がブロックされる場合は、こちらを使ってください。
+
+```powershell
+.\serve-local.cmd
+```
+
 - 既定ポート: `8000`
 - 表示URL: `http://localhost:8000/`
 - 停止: `Ctrl+C`
@@ -25,6 +31,12 @@ PowerShell でプロジェクト直下から次を実行します。
 
 ```powershell
 .\serve-local.ps1 -NoOpen
+```
+
+このセッションだけ `ps1` 実行を許可して使う場合:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\serve-local.ps1
 ```
 
 ## GitHub Pages 設定
