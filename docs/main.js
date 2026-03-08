@@ -25,9 +25,9 @@ document.body.appendChild(renderer.domElement);
 const params = {
   sunIntensity: 1.1,
   sunSpread: 1.2,
-  waveHeight: 0.14,
-  waveFrequency: 0.9,
-  waveSpeed: 0.35,
+  waveHeight: 0.24,
+  waveFrequency: 1.1,
+  waveSpeed: 0.55,
   waveRandomness: 0.35,
   cameraDistance: 8,
   cameraPitch: 16,
@@ -87,7 +87,8 @@ const water = new THREE.Mesh(
           sin((p.x * 2.1 + t * 0.22) * 1.9) *
           sin((p.y * 1.7 - t * 0.19) * 1.7);
 
-        return (w * 0.21 + rnd * 0.18 * uWaveRandomness) * uWaveHeight;
+        // 水中視点でも形が見えるように、波高を強めに反映する。
+        return (w * 0.24 + rnd * 0.20 * uWaveRandomness) * uWaveHeight * 3.6;
       }
 
       void main() {
@@ -99,7 +100,7 @@ const water = new THREE.Mesh(
         pos.y += h;
 
         // 法線を数値微分で計算し、波の陰影を明確に出す。
-        float e = 0.08;
+        float e = 0.06;
         float hx = waveFn(p + vec2(e, 0.0), t) - h;
         float hz = waveFn(p + vec2(0.0, e), t) - h;
         vec3 n = normalize(cross(vec3(0.0, hz, e), vec3(e, hx, 0.0)));
@@ -142,7 +143,7 @@ const water = new THREE.Mesh(
 
         // 反射: フレネルで寄与を増やす。
         vec3 reflDir = reflect(-viewDir, n);
-        float fresnel = pow(1.0 - max(dot(viewDir, n), 0.0), 4.8);
+        float fresnel = pow(1.0 - max(dot(viewDir, n), 0.0), 3.6);
 
         vec3 refrSky = skyColor(normalize(mix(up, refrDir, 0.95)));
         vec3 reflSky = skyColor(normalize(mix(up, reflDir, 0.95)));
@@ -166,7 +167,11 @@ const water = new THREE.Mesh(
         float shape = clamp(vWave * 6.0 + 0.5, 0.0, 1.0);
         vec3 waveTint = mix(vec3(0.0), vec3(0.03, 0.09, 0.12), shape * 0.32);
 
-        vec3 color = transmitted + reflected + sunColor + waveTint;
+        // 法線と太陽方向の内積で陰影を追加し、波の凹凸を視認しやすくする。
+        float sunShade = max(dot(n, normalize(uSunDir)), 0.0);
+        vec3 shadeTint = vec3(0.10, 0.22, 0.30) * pow(sunShade, 1.2) * uSunIntensity;
+
+        vec3 color = transmitted + reflected + sunColor + waveTint + shadeTint;
 
         // 完全不透明ではなく、背景の空が透ける透明水として描画する。
         float alpha = clamp(0.78 + fresnel * 0.16, 0.0, 0.96);
@@ -203,6 +208,7 @@ function updateSkyAndSun() {
 
 // 波パラメーターを更新する。
 function updateWaveParams() {
+  // 波パラメーターはそのままユニフォームへ渡す。
   uniforms.uWaveHeight.value = params.waveHeight;
   uniforms.uWaveFrequency.value = params.waveFrequency;
   uniforms.uWaveSpeed.value = params.waveSpeed;
@@ -221,7 +227,8 @@ function updateCameraPose() {
     Math.sin(pitch) * Math.cos(yaw)
   );
 
-  const target = camera.position.clone().add(dir.multiplyScalar(40));
+  // 視線先を近めにして、局所的な波の起伏を見えやすくする。
+  const target = camera.position.clone().add(dir.multiplyScalar(18));
   camera.lookAt(target);
 }
 
@@ -237,6 +244,13 @@ const sliders = {
   cameraPitch: document.getElementById("cameraPitch"),
   cameraYaw: document.getElementById("cameraYaw"),
 };
+
+// UI表示と内部パラメーターを同期する。
+Object.keys(sliders).forEach((key) => {
+  const input = sliders[key];
+  if (!input) return;
+  input.value = String(params[key]);
+});
 
 Object.keys(sliders).forEach((key) => {
   const input = sliders[key];
