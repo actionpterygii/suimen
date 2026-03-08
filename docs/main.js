@@ -63,8 +63,9 @@ const water = new Water(waterGeometry, {
   waterNormals,
   sunDirection: new THREE.Vector3(0, 1, 0),
   sunColor: 0xffffff,
-  waterColor: 0x1a4f7a,
-  distortionScale: 1.1,
+  // 水色を少し明るくしてグレー寄りを避ける。
+  waterColor: 0x2c7fb6,
+  distortionScale: 1.8,
   fog: false,
   side: THREE.DoubleSide,
 });
@@ -113,10 +114,10 @@ function updateWaveParams() {
   const waveFreq = THREE.MathUtils.clamp(params.waveFrequency, 0.2, 2.2);
 
   // distortionScale を強めにして水面のゆらぎを見えやすくする。
-  water.material.uniforms.distortionScale.value = 0.6 + waveHeight * 20.0;
+  water.material.uniforms.distortionScale.value = 0.8 + waveHeight * 16.0;
 
   // size は波のスケール。範囲を広げて差が分かるようにする。
-  water.material.uniforms.size.value = 0.3 + waveFreq * 3.2;
+  water.material.uniforms.size.value = 0.7 + waveFreq * 2.0;
 }
 
 // 距離・角度パラメーターからカメラ姿勢を再計算する。
@@ -194,13 +195,13 @@ function animate() {
   const speed = 0.2 + params.waveSpeed * 1.8;
   water.material.uniforms.time.value += dt * speed;
 
-  // 波のランダムさで size を微小変動させ、穏やかな不規則性を出す。
-  const baseSize = 0.3 + THREE.MathUtils.clamp(params.waveFrequency, 0.2, 2.2) * 3.2;
-  const randomFactor =
+  // size を毎フレーム変更するとズーム感が出るため固定し、代わりに歪みを微小変動させる。
+  const baseDistortion = 0.8 + THREE.MathUtils.clamp(params.waveHeight, 0, 0.45) * 16.0;
+  const distortionJitter =
     1.0 +
-    Math.sin(t * 0.37) * 0.11 * params.waveRandomness +
-    Math.sin(t * 0.61 + 1.7) * 0.08 * params.waveRandomness;
-  water.material.uniforms.size.value = baseSize * randomFactor;
+    Math.sin(t * 0.55) * 0.08 * params.waveRandomness +
+    Math.sin(t * 0.83 + 1.2) * 0.05 * params.waveRandomness;
+  water.material.uniforms.distortionScale.value = baseDistortion * distortionJitter;
 
   renderer.render(scene, camera);
 }
