@@ -2,7 +2,7 @@
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x031021);
-scene.fog = new THREE.Fog(0x031021, 90, 240);
+scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(
   65,
@@ -17,8 +17,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.NoToneMapping;
 document.body.appendChild(renderer.domElement);
 
 const params = {
@@ -58,7 +57,7 @@ const water = new THREE.Mesh(
   new THREE.PlaneGeometry(260, 260, 320, 320),
   new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
-    transparent: true,
+    transparent: false,
     uniforms,
     vertexShader: `
       uniform float uTime;
@@ -156,7 +155,7 @@ const water = new THREE.Mesh(
         color += vec3(0.85, 0.96, 1.0) * sunGlow * (0.5 + 0.5 * fresnel);
         color += vec3(0.12, 0.30, 0.36) * caustic * (0.4 + rim * 0.6);
 
-        float alpha = clamp(0.86 + fresnel * 0.1, 0.0, 1.0);
+        float alpha = 1.0;
         gl_FragColor = vec4(color, alpha);
       }
     `,
@@ -168,7 +167,7 @@ scene.add(water);
 
 const haze = new THREE.Mesh(
   new THREE.SphereGeometry(180, 32, 32),
-  new THREE.MeshBasicMaterial({ color: 0x052241, side: THREE.BackSide, transparent: true, opacity: 0.12 })
+  new THREE.MeshBasicMaterial({ color: 0x052241, side: THREE.BackSide, transparent: true, opacity: 0.03 })
 );
 scene.add(haze);
 
