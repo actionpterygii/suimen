@@ -1,11 +1,31 @@
-# suimen
+﻿# suimen
 
 Three.js を使った GitHub Pages プロジェクトです。  
 公開ルートは `docs/` です。
 
-## 開発
+## ローカル確認
 
-`docs/index.html` をブラウザで開くと動作確認できます。
+PowerShell でプロジェクト直下から次を実行します。
+
+```powershell
+.\serve-local.ps1
+```
+
+- 既定ポート: `8000`
+- 表示URL: `http://localhost:8000/`
+- 停止: `Ctrl+C`
+
+ポートを変える場合:
+
+```powershell
+.\serve-local.ps1 -Port 5173
+```
+
+ブラウザを自動で開かない場合:
+
+```powershell
+.\serve-local.ps1 -NoOpen
+```
 
 ## GitHub Pages 設定
 
