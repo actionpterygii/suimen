@@ -119,7 +119,7 @@ function updateWaveParams() {
 
 function updateCameraPose() {
   // 上面視点なので y は正方向（空側）に配置する。
-  const distance = THREE.MathUtils.max(params.cameraDistance, 1.2);
+  const distance = Math.max(params.cameraDistance, 1.2);
   camera.position.y = distance;
 
   // pitch は「水面へ向ける角度」として扱い、常に下向きにする。
