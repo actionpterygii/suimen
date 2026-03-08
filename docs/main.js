@@ -2,7 +2,7 @@
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x031021);
-scene.fog = new THREE.Fog(0x031021, 35, 160);
+scene.fog = new THREE.Fog(0x031021, 90, 240);
 
 const camera = new THREE.PerspectiveCamera(
   65,
@@ -16,6 +16,9 @@ camera.lookAt(0, 0.1, 0);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
 
 const params = {
@@ -25,8 +28,8 @@ const params = {
   waveFrequency: 0.9,
   waveSpeed: 0.35,
   waveRandomness: 0.35,
-  cameraDistance: 2.6,
-  cameraPitch: 12,
+  cameraDistance: 8,
+  cameraPitch: 16,
   cameraYaw: 0,
 };
 
@@ -55,7 +58,7 @@ const water = new THREE.Mesh(
   new THREE.PlaneGeometry(260, 260, 320, 320),
   new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
-    transparent: true,
+    transparent: false,
     uniforms,
     vertexShader: `
       uniform float uTime;
@@ -121,21 +124,21 @@ const water = new THREE.Mesh(
 
         vec3 sunDir = normalize(vec3(0.15, 1.0, 0.25));
         float sunDot = max(dot(normal, sunDir), 0.0);
-        float sunGlow = pow(sunDot, 6.0 / max(uSunSpread, 0.15)) * uSunIntensity;
+        float sunGlow = pow(sunDot, 10.0 / max(uSunSpread, 0.15)) * uSunIntensity;
 
         float rim = pow(1.0 - max(dot(viewDir, normal), 0.0), 2.4);
 
         float caustic =
           sin(vWorldPos.x * 2.0 + uTime * 0.35) *
           sin(vWorldPos.z * 2.4 - uTime * 0.28);
-        caustic = (caustic * 0.5 + 0.5) * 0.18 * uSunIntensity;
+        caustic = (caustic * 0.5 + 0.5) * 0.12 * uSunIntensity;
 
-        float blend = clamp(0.45 + vWave * 2.2 + rim * 0.6, 0.0, 1.0);
+        float blend = clamp(0.38 + vWave * 2.8 + rim * 0.35, 0.0, 1.0);
         vec3 color = mix(deep, shallow, blend);
         color += vec3(0.8, 0.95, 1.0) * sunGlow;
         color += vec3(0.15, 0.35, 0.4) * caustic;
 
-        float alpha = clamp(0.84 + rim * 0.12, 0.0, 1.0);
+        float alpha = 1.0;
         gl_FragColor = vec4(color, alpha);
       }
     `,
@@ -147,7 +150,7 @@ scene.add(water);
 
 const haze = new THREE.Mesh(
   new THREE.SphereGeometry(180, 32, 32),
-  new THREE.MeshBasicMaterial({ color: 0x052241, side: THREE.BackSide, transparent: true, opacity: 0.33 })
+  new THREE.MeshBasicMaterial({ color: 0x052241, side: THREE.BackSide, transparent: true, opacity: 0.12 })
 );
 scene.add(haze);
 
